@@ -116,6 +116,12 @@ If you have `natively` installed *R* and *RStudio*, you need to ensure you have 
 * `viridis`
 
 
+You can get the materials from this course as a [download](https://github.com/fcorowe/udd_gds_course/archive/refs/heads/main.zip) of a .zip file or by going directly to the [GitHub repository](https://github.com/fcorowe/udd_gds_course).
+
+
+
+
+
 ```{r eval=FALSE, include=FALSE}
 file.edit(
   tint:::template_resources(
