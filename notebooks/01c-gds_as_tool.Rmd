@@ -1,0 +1,109 @@
+---
+title: "Geographic Data Science as a Planning Tool"
+author: "Francisco Rowe ([`@fcorowe`](http://twitter.com/fcorowe))"
+date: "`r Sys.Date()`"
+output: tint::tintHtml
+bibliography: skeleton.bib
+link-citations: yes
+---
+
+```{r setup, include=FALSE}
+library(tint)
+# invalidate cache when the package version changes
+knitr::opts_chunk$set(tidy = FALSE, cache.extra = packageVersion('tint'))
+options(htmltools.dir.version = FALSE)
+```
+
+[Steif (2021a)](https://penntoday.upenn.edu/news/working-intersection-data-science-and-public-policy): "_the biggest challenge is not teaching planners how to code data science but how to consider algorithms more broadly in the context of service delivery._" 
+ 
+```{marginfigure}
+Steif, K., 2021. Public Policy Analytics: Code and Context for Data Science in Government. CRC Press.
+```
+A great recent examples of service delivery or data science for social good has been COVID-19. In turn, COVID-19 changed the way that governments think about data science.
+
+# How governments make decisions
+
+* Ad-hoc approach - "based on air"
+* Political decision making - agreement, negotiations or favours
+* Institutional knowledge - business-as-usual approach
+* Evidence-based - **data-driven** decision making
+
+Recommended reading: [Steif (2021a)](https://urbanspatial.github.io/PublicPolicyAnalytics/index.html)
+
+# Policy context is foundational
+
+Policy markers (and often decision makers in general) don't have time or data science training but they have domain expertise. So learn how they make decisions. Learn what the inputs, outputs and consequences of their decisions are.
+
+## What is the policy?
+
+A set of guiding principles used to achieve a set of goals or outcomes. 
+
+It's key for data scientists to understand policy, to design solutions e.g. time scales, interrelated policies and outcomes and geographic differences.
+
+## What are the existing programmes to achieve stated policy goals?
+
+Programmes are the *tool* used to implement a policy interventions to achieve specific policy goals.
+
+Good, effective programmes are hard to design. They can fail, even if policy goals are well defined.
+
+## How do we know if policy programmes work?
+
+Programme evaluation is key but often ignored. 
+
+Program evaluation is the art and science of estimating the efficacy of programmes.
+
+We are interested in understanding programmes - often estimating the causal impact of the programmes on an outcome of interest.
+
+## How are policy programme implemented?
+
+[Steif (2021a)](https://penntoday.upenn.edu/news/working-intersection-data-science-and-public-policy): 
+"This is _operational decision-making_, and the area where data scientists can have the greatest [immediate] impact. The goal is to _deliver resources when, where, and to whom_ they are most needed."
+
+# Research is key
+
+**Solve problems**
+
+Research is as a **major activity** in government and private corporations in more developed countries
+
+* **Project planning** is required in government agencies, private companies, community groups and NGOs.
+*	Capacity to effectively **identify** and schedule **needs** (e.g. financial, personnel and other resources) is essential in any high-level management position.
+*	Ability to **communicate** with and **coordinate** "teams" or project groups containing members from a number of different companies working on a project.
+
+# Basic principles of research
+
+*	You begin research - **identify a problem** and review related work / solutions.
+*	**Establish a specific goal** or **statement of problem** to guide your work and break this into sub-problems to address it.
+* **Design a specific plan** or procedure to follow (aka research methods)
+*	**Estimate the resources**, time and skills required to complete the project - (re-design?)
+*	**Interpret, assess and analyse data** to derive conclusions addressing your original problem
+* Use results / evidence to **update existing knowledge** and set up further questions to be answered - (research is circular)
+
+The **research problem statement is the most important** part of a project. It must be fully and clearly phrased to represent the goal of your research. It should be written in a complete grammatical sentence in as few words as possible.
+
+## Sequence of design
+
+* Problem statement
+* Research Objective/Hypothesis 
+* Sub-problems
+* Methodology
+* Expected Results
+
+# Research problem statements **CAN'T** be:
+
+* Answered by a yes or no - focus on the what, why and how.
+* The result of a simple comparison or correlation between two variables - must be about a more comprehensive understanding of interconnected building blocks.
+*	Simple questions for self-enlightenment - must be about a greater good.
+
+
+```{r eval=FALSE, include=FALSE}
+file.edit(
+  tint:::template_resources(
+    'tint', '..', 'skeleton', 'skeleton.Rmd'
+  )
+)
+```
+
+```{r bib, include=FALSE}
+# create a bib file for the R packages used in this document
+knitr::write_bib(c('base', 'rmarkdown'), file = 'skeleton.bib')
+```
