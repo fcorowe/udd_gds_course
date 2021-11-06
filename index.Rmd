@@ -21,6 +21,7 @@ This course offers an introduction to *Geographic Data Science for Public Policy
 # Aims
 
 This module aims to provide an introduction to geographic data science and illustrate how geographic data science  data can be used to produce evidence and inform decision making:
+
 * Understand how geographic data science can support data-driven decision making;
 * Provide an understanding of the core principles of geographic data science;
 * Offer programming and technical skills to apply geographic data science;
