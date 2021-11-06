@@ -52,7 +52,7 @@ If you use the material, code or processed data, you can give appropriate attrib
   author = {Francisco Rowe},
   title = {Geographic Data Science for Public Policy},
   year = 2021,
-  url = {\url{https://fcorowe.github.io/sl/}},
+  url = {fcorowe.github.io/udd_gds_course/},
   doi = {forthcoming},
 }
 ```
