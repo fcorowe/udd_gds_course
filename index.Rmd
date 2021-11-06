@@ -67,12 +67,6 @@ All this course material is available on Github and you can download it [**here*
 
 ![Fig. 1. Folder structure.](./figs/folder_str.png)
 
-
-
-* Concepts: lecture & readings
-* Hands-on: interactive session
-* Practical: do it on your own
-
 # Computational Environment
 
 You need the most recent version of R and packages. These can be installed following the instructions provided in our [R installation guide](https://gdsl-ul.github.io/r_install/).
