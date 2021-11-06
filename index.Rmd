@@ -63,7 +63,7 @@ The course is structured as follows:
 
 # Resources
 
-All this course material is available on Github and you can download it [here]. Once you have download it, ensure it is in a safe place on your computer. The folder should display the following folder structure:
+All this course material is available on Github and you can download it [here](https://github.com/fcorowe/udd_gds_course/archive/refs/heads/main.zip). Once you have download it, ensure it is in a safe place on your computer. The folder should display the following folder structure:
 
 ![Fig. 1. Folder structure.](./figs/folder_str.png)
 
