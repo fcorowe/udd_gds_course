@@ -1,0 +1,354 @@
+---
+title: "Spatial econometrics: Fundamentals"
+author: "Francisco Rowe ([`@fcorowe`](http://twitter.com/fcorowe))"
+date: "`r Sys.Date()`"
+output: tint::tintHtml
+bibliography: skeleton.bib
+link-citations: yes
+---
+
+```{r setup, include=FALSE}
+library(tint)
+# handle spatial data
+library(sf)
+library(spdep)
+# manipulate data
+library(tidyverse)
+library(lubridate)
+# create maps
+library(tmap)
+# nice colour schemes
+library(viridis) 
+library(viridisLite)
+# invalidate cache when the package version changes
+knitr::opts_chunk$set(tidy = FALSE, cache.extra = packageVersion('tint'))
+options(htmltools.dir.version = FALSE)
+```
+
+# Key idea
+
+Let's start by identifying a problem / a research question. 
+This will give a purpose for our analysis and define what what want to do. 
+We may want to understand why people are *moving out* from certain areas of the country, or we may want to understand why they may be *moving to* certain destinations. 
+Both questions are equally important from a range of different perspectives. 
+
+> Can you identify reasons?
+
+We have identified our purpose. Let's aim to understand the extent of spatial variation in net migration gains and losses i.e. certain areas have experience population growth due to migration while others have registered population decline.
+
+# Data
+
+We'll work with the same data describe in our first session of today [Mapping data](01-mapping-data.html). 
+
+At this stage, an important aspect is to define a metric or set of metrics which we can use to quantify the extent of spatial variation in net migration gains and losses. 
+Here we'll use a simple yet useful metric: net migration flows. 
+
+```{r, output=FALSE, message=FALSE}
+# clean workspace
+rm(list=ls())
+
+# load data
+df_long <- read_csv("../data/internal_migration/Detailed_Estimates_2020_LA_2021_Dataset_1.csv")
+
+# id for origins and destinations
+orig_la_nm <- as.data.frame(unique(df_long$OutLA))
+dest_la_nm <- as.data.frame(unique(df_long$InLA))
+
+# read shapefile
+la_shp <- st_read("../data/Local_Authority_Districts_(May_2021)_UK_BFE_V3/LAD_MAY_2021_UK_BFE_V2.shp")
+
+# out-migration
+outflows <- df_long %>% 
+  group_by(OutLA) %>%
+   dplyr::summarise( n = sum(Moves, na.rm = T))
+
+# in-migration
+inflows <- df_long %>% 
+  group_by(InLA) %>%
+   dplyr::summarise( n = sum(Moves, na.rm = T))
+
+# net migration
+indicators <- full_join(outflows, 
+                        inflows,
+                        by = c("OutLA" = "InLA")) %>% 
+  mutate_if(is.numeric, ~replace(., is.na(.), 0)) %>% 
+  mutate_if(is.numeric, round) %>% 
+  rename(
+    outflows = n.x,
+    inflows = n.y
+  ) %>% 
+    mutate(
+  netflows = (inflows - outflows)
+  ) 
+
+# join dfs
+la_shp <- left_join(la_shp, indicators, by = c("LAD21CD" = "OutLA"))
+
+# id for country name initial
+la_shp$ctry_nm <- substr(la_shp$LAD21CD, 1, 1)
+la_shp$ctry_nm <- as.factor(la_shp$ctry_nm)
+
+# simplify boundaries
+la_shp_simple <- st_simplify(la_shp, 
+                             preserveTopology =T,
+                             dTolerance = 1000) # 1km
+
+# ensure geometry is valid
+la_shp_simple <- sf::st_make_valid(la_shp_simple)
+```
+
+# Exploratory Spatial Data Analysis
+
+Before diving into more sophisticated analysis, a good starting point is to run exploratory spatial data analysis (ESDA). 
+ESDAs are usually divided into two main groups: 
+(1) **global** spatial autocorrelation: which focuses on the overall trend or the degree of spatial clustering in a variable;  
+(2) **local** spatial autocorrelation: which focuses on spatial instability: the departure of parts of a map from the general trend. it is useful to identify hot or cold spots.
+
+```{marginfigure}
+Recall: **Spatial autocorrelation** relates to the degree to which the similarity in values between observations in a variable in neighbouring areas.
+```
+
+A key idea to develop some intuition here is the idea of **spatial randomness** i.e. a situation in which values of an observation is unrelated to location, and therefore a variable's distribution does not follow a no discernible pattern over space. 
+
+Spatial autocorrelation can be defined as the "absence of spatial randomness". 
+This gives rise to two main classes of autocorrelation:  
+(1) **Positive** spatial autocorrelation: when similar values tend to group together in similar locations; and,  
+(2) **Negative** spatial autocorrelation, where similar values tend to be dispersed and further apart from each other in nearby locations.
+
+Here we will explore spatial autocorrelation looking at how we can identify its presence, nature, and strength.
+
+Let's start with some simple exploration of the data creating a scatterplot. 
+
+```{marginfigure}
+What can this tell us?
+```
+  
+```{r, fig.margin = TRUE, message=FALSE, warning=FALSE}
+ggplot(la_shp_simple, aes(x = outflows, y = inflows)) + 
+  geom_point() + 
+  geom_smooth(method = "lm") +
+  ylab("In-migration") + 
+  xlab("Out-migration") +
+  theme_classic()
+```
+
+Now let's run a simple linear regression model. 
+Since we know inflows and outflows are highly correlated, we will use only outflows and avoid potential problems of multicollinearity.
+
+```{r}
+eq1 <- netflows ~ outflows
+m1 <- lm(
+  eq1,
+  la_shp_simple
+)
+summary(m1)
+```
+
+This initially exploration is helpful but it does not tell use anything about how net migration outcomes are distributed across space. 
+Maps are nice tools for this.
+
+```{marginfigure}
+What do we learn from this?
+```
+
+```{r}
+tm_shape(la_shp_simple) +
+  tm_fill(col = "netflows", style = "equal", palette = viridis(6), title = "Net migration") +
+   tm_borders(lwd = 0) +
+  tm_facets(by = "ctry_nm", ncol = 2) +
+  tm_layout(legend.title.size = 1,
+          legend.text.size = 0.6,
+          legend.position = c("right","top"),
+          legend.bg.color = "white",
+          legend.bg.alpha = 1)
+```
+Yes, there is some spatial pattering: similar values tend to cluster together in space. 
+
+```{marginfigure}
+How can we measure this apparently spatial clustering or spatial dependence? 
+  Is it statistically significant?
+```
+
+# Spatial lag
+
+To measure spatial dependence and further explore it, we will need to create an spatial lag. 
+An spatial lag is the product of a spatial weight matrix and a given variable. 
+The spatial lag of a variable is the average value of that variable in the neighborhood; that is, using the values of all the areas which are defined as neighbours; hence, the concept of spatial lag is inherently related to the concept of spatial weight matrix.
+
+## Creating a spatial weight matrix
+
+So first let's build and standardise a spatial weight matrix. 
+For this example, we'll use the 10 k nearest neighbours.
+
+```{marginfigure}
+Try other spatial weights matrices definitions
+```
+
+
+```{r}
+# replace nas with 0s to avoid issues
+la_shp_simple <- la_shp_simple %>% mutate_if(
+  is.numeric, ~replace(., is.na(.), 0)
+)
+
+# create knn list
+coords <- st_centroid(st_geometry(la_shp_simple))
+col_knn <- knearneigh(coords, k=10)
+# create nb object
+hnb <- knn2nb(col_knn)
+# create spatial weights matrix (note it row-standardizes by default)
+hknn <- nb2listw(hnb)
+hknn
+```
+
+```{marginfigure}
+Have a go at interpreting the summary of the spatial weight matrix
+```
+
+# Creating a spatial lag
+
+Once we have built a spatial weights matrix, we can compute an spatial lag. 
+A spatial lag offers a quantitative way to represent spatial dependence, specifically the degree of connection between geographic units. 
+
+Remember: the spatial lag is the product of a spatial weights matrix and a given variable and amounts to the average value of the variable in the neighborhood of each variable's value.
+
+We use the row-standardised matrix for this and compute the spatial lag of the migration outflows. 
+
+```{r}
+outflows_lag <- lag.listw(hknn, la_shp_simple$outflows)
+head(outflows_lag)
+```
+
+The way to interpret the spatial lag `outflows_lag` for the first observation: Hartlepool, where 2,660 people out-migrated is surrounded by neighbouring local authorities where, on average, 4,533 people also left.
+
+# Spatial Autocorrelation
+
+We first start exploring global spatial autocorrelation. 
+To this end, we will focus on the Moran Plot and Moran's I statistics.
+
+## Moran Plot
+
+The moran plot is a way of visualising the nature and strength of spatial autocorrelation. 
+It's essentially an scatter plot between a variable and its spatial lag. 
+To more easily interpret the plot, variables are standardised. 
+
+```{r, fig.margin = TRUE, message=FALSE, warning=FALSE}
+ggplot(la_shp_simple, aes(x = outflows, y = outflows_lag)) + 
+  geom_point() + 
+  geom_smooth(method = "lm") +
+  ylab("Out-migration lag") + 
+  xlab("Out-migration") +
+  theme_classic()
+```
+
+```{r}
+la_shp_simple_eng <- cbind(la_shp_simple, as.data.frame(outflows_lag))
+
+la_shp_simple_eng <- la_shp_simple_eng %>% filter(
+  ctry_nm == "E"
+) %>% 
+  mutate(
+    st_outflows = ( outflows - mean(outflows)) / sd(outflows),
+    st_outflows_lag = ( outflows_lag - mean(outflows_lag)) / sd(outflows_lag)
+  )
+
+```
+
+In a standardised *Moran Plot*, average values are centered around zero and dispersion is expressed in standard deviations. 
+The rule of thumb is that values greater or smaller than two standard deviations can be considered outliers. 
+A standardised Moran Plot can also be used to visualise *local spatial autocorrelation*.
+
+```{marginfigure}
+Do you recall what *local spatial autocorrelation* is?
+```
+
+We can observe local spatial autocorraltion by partitioning the Moran Plot into four quadrants that represent different situations:
+
+* High-High (HH): values above average surrounded by values above average.  
+* Low-Low (LL): values below average surrounded by values below average.  
+* High-Low (HL): values above average surrounded by values below average.  
+* Low-High (LH): values below average surrounded by values above average.  
+
+```{r}
+ggplot(la_shp_simple_eng, aes(x = st_outflows, y = st_outflows_lag)) + 
+  geom_point() + 
+  geom_smooth(method = "lm") +
+  geom_hline(yintercept = 0, color = "grey", alpha =.5) +
+  geom_vline(xintercept = 0, color = "grey", alpha =.5) +
+  ylab("Out-migration lag") + 
+  xlab("Out-migration") +
+  theme_classic()
+```
+
+```{marginfigure}
+What do we learn from the Moran Plot?
+```
+
+## Moran's I
+
+To measure global spatial autocorrelation, we can use the *Moran's I*. 
+The Moran Plot and intrinsicaly related. 
+The value of Moran’s I corresponds with the slope of the linear fit on the Moran Plot.
+We can compute it by running: 
+
+```{r}
+moran.test(la_shp_simple$outflows, listw = hknn, zero.policy = TRUE, na.action = na.omit)
+```
+
+```{marginfigure}
+What does the Moran's I tell us?
+```
+
+# Exogenous spatial effects model
+
+Finally let's explore how we can use our spatial lag variable in a regression model and what it can tell us. 
+So far, we have measured spatial dependence in isolation. 
+But that spatial dependence could be associated to a particular factor that could be explicitly measured and included in a model. 
+So it is worth considering spatial dependence in a wider context, analysing its degree as other variables are accounted in a regression model. 
+We can do this plugging our spatial lag variable into a regression model.
+
+```{r}
+eq2 <- netflows ~ outflows + outflows_lag
+m2 <- lm(
+  eq2,
+  la_shp_simple
+)
+summary(m2)
+```
+
+We can see that the coefficient associated with the spatial lag is positive but not statistically significant. 
+This would imply that the average number of people leaving neighbouring local authority districts are not necessarily related to the volume of people leaving a given area. 
+It could be related to additional factors of the same area in question. 
+
+> Final Note: Introducing a spatial lag of an explanatory variable, as we have done here, is the most straightforward way of incorporating the notion of spatial dependence in a linear regression framework. 
+It does not require additional changes to the modelling structure, can be estimated via OLS and the interpretation is similar to interpreting non-spatial variables. 
+However, other model specifications are more common in the field of spatial econometrics, specifically: the **spatial lag** and **spatial error** model. 
+While both built on the notion of spatial lag, they require a different modelling and estimation strategy.
+
+```{marginfigure}
+Rowe, F., Arribas-Bel, D. 2021. [Spatial Modelling for Data Scientists](https://gdsl-ul.github.io/san/).
+```
+
+Excellent references to continue your learning on spatial econometrics are:  
+
+Anselin, Luc. 1988. [Spatial Econometrics: Methods and Models](https://doi.org/10.1007/978-94-015-7799-1). Vol. 4. Springer Science & Business Media.  
+Anselin, Luc. 2003. [Spatial Externalities, Spatial Multipliers, and Spatial Econometrics.](https://doi.org/10.1177/0160017602250972) International Regional Science Review 26 (2): 153–66.  
+Anselin, Luc, and Sergio J. Rey. 2014. [Modern Spatial Econometrics in Practice: A Guide to Geoda, Geodaspace and Pysal.](Anselin, L. and Rey, S.J., 2014. Modern spatial econometrics in practice: A guide to GeoDa, GeoDaSpace and PySAL. GeoDa Press LLC.) GeoDa Press LLC.  
+
+
+
+
+
+```{r eval=FALSE, include=FALSE}
+file.edit(
+  tint:::template_resources(
+    'tint', '..', 'skeleton', 'skeleton.Rmd'
+  )
+)
+```
+
+
+```{r bib, include=FALSE}
+# create a bib file for the R packages used in this document
+knitr::write_bib(c('base', 'rmarkdown'), file = 'skeleton.bib')
+```

@@ -41,6 +41,7 @@ By the end of the module, you should be able to:
 
 The course is structured as follows:
 
+**Day 1**  
 * [**Introduction to Geographic Data Science for Public Policy**](index.html)  
   - [*Structure of the course*](index.html)
   - [*Geographic data science*](01b-gds.html)
@@ -49,7 +50,11 @@ The course is structured as follows:
 * [**Spatial data**](03a-spatial-data.html)  
   - [*Spatial data is special*](03a-spatial-data.html)
   - [*Understanding spatial data*](03b-spatial-data.html)
-* **Hands-on** 
+
+**Day 2**
+* [**Mapping data**](01-mapping-data.html)  
+* [**Spatial weights**](02-spatial_weights.html)  
+* [**Spatial econometrics**](03-spatial_econometrics.html)  
 
 # Philosophy
 
@@ -83,6 +88,7 @@ If you have `natively` installed *R* and *RStudio*, you need to ensure you have 
 * `FRK`
 * `gghighlight`
 * `ggplot2`
+* `ggpubr`
 * `ggmap`
 * `GISTools`
 * `gridExtra`

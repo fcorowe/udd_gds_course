@@ -1,0 +1,234 @@
+---
+title: "Mapping data"
+author: "Francisco Rowe ([`@fcorowe`](http://twitter.com/fcorowe))"
+date: "`r Sys.Date()`"
+output: tint::tintHtml
+bibliography: skeleton.bib
+link-citations: yes
+---
+
+```{r setup, include=FALSE}
+library(tint)
+# handle spatial data
+library(sf)
+# manipulate data
+library(tidyverse)
+library(lubridate)
+# create maps
+library(tmap)
+# nice colour schemes
+library(viridis) 
+library(viridisLite)
+# invalidate cache when the package version changes
+knitr::opts_chunk$set(tidy = FALSE, cache.extra = packageVersion('tint'))
+options(htmltools.dir.version = FALSE)
+```
+
+Before diving into this session, let's ask ourselves:
+
+* Why to create geovisualisations?
+
+For creating maps, cartography is important. A carefully crafted map can be an effective way of communicating complex information.
+Design issues include poor placement, size and readability of text and careless selection of colors. 
+Have a look the [style guide](https://www.tandf.co.uk//journals/authors/style/TJOM-suppmaterial-quick-guide.pdf) of the Journal of Maps for details.
+
+> For colour palettes, I recommend:
+* [viridis](https://cran.r-project.org/web/packages/viridis/)
+* [color brewer 2.0](https://colorbrewer2.org/#type=sequential&scheme=BuGn&n=3)
+
+```{marginfigure}
+Crameri, F., Shephard, G.E. and Heron, P.J., 2020. [The misuse of colour in science communication. Nature communications](https://doi.org/10.1038/s41467-020-19160-7), 11(1), pp.1-10.
+```
+
+# Choropleths
+
+Choropleths are thematic maps. They are easy to create but also to get wrong. We'll look at a set of the principles you can follow to create effective choropleth maps. Here three more questions to consider:
+
+* What is being plotted?  
+* What is the target audience?  
+* What degree of interactivity we want to offer?  
+
+```{marginfigure}
+MacEachren, A.M. and Kraak, M.J., 1997. [Exploratory cartographic visualization: advancing the agenda](https://doi.org/10.1016/S0098-3004(97)00018-6), Computers & Geosciences, 23(4), 335-343.
+```
+
+# Data
+
+We will use [internal migration data](https://www.ons.gov.uk/peoplepopulationandcommunity/populationandmigration/migrationwithintheuk/datasets/internalmigrationbyoriginanddestinationlocalauthoritiessexandsingleyearofagedetailedestimatesdataset) from the Office for National Statistics (ONS) from the United Kingdom. 
+
+The original data are organised in a long format structure and are disaggregated by sex and age. Each row captures the count of people moving from an origin to a destination. The spatial units of analysis are local authorities (LA).
+
+```{r}
+# clean workspace
+rm(list=ls())
+
+# load data
+df_long <- read_csv("../data/internal_migration/Detailed_Estimates_2020_LA_2021_Dataset_1.csv")
+
+# id for origins and destinations
+orig_la_nm <- as.data.frame(unique(df_long$OutLA))
+dest_la_nm <- as.data.frame(unique(df_long$InLA))
+
+head(df_long)
+```
+We also read our LA boundaries and analyse the structure of the data. We use open data from the ONS's Geography portal. We use the [Local Authority Districts Boundaries (May 2021) UK BFE](https://geoportal.statistics.gov.uk/datasets/ons::local-authority-districts-may-2021-uk-bfe/about)
+
+```{r}
+# read shapefile
+la_shp <- st_read("../data/Local_Authority_Districts_(May_2021)_UK_BFE_V3/LAD_MAY_2021_UK_BFE_V2.shp")
+
+str(la_shp)
+```
+
+## Computing mobility indicators
+
+Before moving forward we need to define our objective, what is it that we want to visualise / analyse / monitor? *Recall* the principles of research design and planning. 
+
+Once we have decided our objective, we can define our metrics.
+
+```{r}
+# out-migration
+outflows <- df_long %>% 
+  group_by(OutLA) %>%
+   dplyr::summarise( n = sum(Moves, na.rm = T))
+
+# in-migration
+inflows <- df_long %>% 
+  group_by(InLA) %>%
+   dplyr::summarise( n = sum(Moves, na.rm = T))
+
+# net migration
+indicators <- full_join(outflows, 
+                        inflows,
+                        by = c("OutLA" = "InLA")) %>% 
+  mutate_if(is.numeric, ~replace(., is.na(.), 0)) %>% 
+  mutate_if(is.numeric, round) %>% 
+  rename(
+    outflows = n.x,
+    inflows = n.y
+  ) %>% 
+    mutate(
+  netflows = (inflows - outflows)
+  ) 
+
+```
+
+
+## Joining spatial data
+
+```{r}
+la_shp <- left_join(la_shp, indicators, by = c("LAD21CD" = "OutLA"))
+```
+
+
+# Mapping categorical data
+
+Let's start by mapping categorical data and learning about the UK.
+
+```{r}
+# id for country name initial
+la_shp$ctry_nm <- substr(la_shp$LAD21CD, 1, 1)
+la_shp$ctry_nm <- as.factor(la_shp$ctry_nm)
+
+# simplify boundaries
+la_shp_simple <- st_simplify(la_shp, 
+                             preserveTopology =T,
+                             dTolerance = 1000) # 1km
+
+# ensure geometry is valid
+la_shp_simple <- sf::st_make_valid(la_shp_simple)
+
+tm_shape(la_shp_simple) +
+  tm_fill(col = "ctry_nm", style = "cat", palette = viridis(4), title = "Country") +
+   tm_borders(lwd = 0)  +
+    tm_layout(legend.title.size = 1,
+          legend.text.size = 0.6,
+          legend.position = c("right","top"),
+          legend.bg.color = "white",
+          legend.bg.alpha = 1)
+```
+
+# Mapping continous data
+
+If instead we want to visualise the geographical distribution of a continous phenomenon, we have a few more alternatives.
+
+## Equal interval
+
+An option is 'equal intervals'. The intuition is to divide the distribution into equal size segments.
+
+```{r}
+tm_shape(la_shp_simple) +
+  tm_fill(col = "netflows", style = "equal", palette = viridis(6), title = "Net migration") +
+   tm_borders(lwd = 0) +
+  tm_layout(legend.title.size = 1,
+          legend.text.size = 0.6,
+          legend.position = c("right","top"),
+          legend.bg.color = "white",
+          legend.bg.alpha = 1)
+```
+Equal interval bins are more appropriate for variables with a uniform distribution. 
+They are not recommended for variables with a skewed distribution. *Why?*
+
+## Quantiles
+
+This algorithm ensures that the same number of data points fall into each category.
+A potential issue could be that bin ranges can vary widely.
+
+```{r}
+tm_shape(la_shp_simple) +
+  tm_fill(col = "netflows", style = "quantile", palette = viridis(6), title = "Net migration") +
+   tm_borders(lwd = 0) +
+  tm_layout(legend.title.size = 1,
+          legend.text.size = 0.6,
+          legend.position = c("right","top"),
+          legend.bg.color = "white",
+          legend.bg.alpha = 1)
+```
+
+## Fisher-Jenks
+
+The Fisher-Jenks algorithm, known as 'natural breaks', identifies groups of similar values in the data and maximises the differences between categories i.e. *'natural breaks'*.
+
+```{marginfigure}
+Jenks, G.F., 1967. The data model concept in statistical mapping. International yearbook of cartography, 7, pp.186-190.
+Vancouver	
+```
+
+```{r}
+tm_shape(la_shp_simple) +
+  tm_fill(col = "netflows", style = "jenks", palette = viridis(6), title = "Net migration") +
+   tm_borders(lwd = 0) +
+  tm_layout(legend.title.size = 1,
+          legend.text.size = 0.6,
+          legend.position = c("right","top"),
+          legend.bg.color = "white",
+          legend.bg.alpha = 1)
+```
+
+## Order
+
+Order helps presenting a large number of colors over continuous surface of colours and can be very useful for rasters. `order` can help display skewed distributions.
+
+```{r}
+tm_shape(la_shp_simple) +
+  tm_fill(col = "netflows", style = "order", palette = viridis(256), title = "Net migration") +
+  tm_borders(lwd = 0) +
+  tm_layout(legend.title.size = 1,
+          legend.text.size = 0.6,
+          legend.position = c("right","top"),
+          legend.bg.color = "white",
+          legend.bg.alpha = 1)
+```
+
+```{r eval=FALSE, include=FALSE}
+file.edit(
+  tint:::template_resources(
+    'tint', '..', 'skeleton', 'skeleton.Rmd'
+  )
+)
+```
+
+```{r bib, include=FALSE}
+# create a bib file for the R packages used in this document
+knitr::write_bib(c('base', 'rmarkdown'), file = 'skeleton.bib')
+```

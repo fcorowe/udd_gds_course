@@ -1,0 +1,170 @@
+---
+title: "Understanding Spatial Data"
+author: "Francisco Rowe ([`@fcorowe`](http://twitter.com/fcorowe))"
+date: "`r Sys.Date()`"
+output: tint::tintHtml
+bibliography: skeleton.bib
+link-citations: yes
+---
+
+```{r setup, include=FALSE}
+library(tint)
+# Data manipulation, transformation and visualisation
+library(tidyverse)
+# Nice tables
+library(kableExtra)
+# Simple features (a standardised way to encode vector data ie. points, lines, polygons)
+library(sf) 
+# Spatial objects conversion
+library(sp) 
+# Thematic maps
+library(tmap) 
+# Colour palettes
+library(RColorBrewer) 
+# More colour palettes
+library(viridis)
+# invalidate cache when the package version changes
+knitr::opts_chunk$set(tidy = FALSE, cache.extra = packageVersion('tint'))
+options(htmltools.dir.version = FALSE)
+```
+
+
+# Using Spatial Data Frames
+
+A core area of this module is learning to work with spatial data in R. R has various purposedly designed **packages** for manipulation of spatial data and spatial analysis techniques. Various R packages exist in CRAN eg. `spatial`, `sgeostat`, `splancs`, `maptools`, `tmap`, `rgdal`, `spand` and more recent development of `sf` - see [Lovelace, Nowosad, and Muenchow, 2021](https://geocompr.robinlovelace.net) for a great description and historical context for some of these packages.
+
+```{marginfigure}
+Lovelace, R., Nowosad, J. and Muenchow, J., 2019. Geocomputation with R. CRC Press
+```
+
+During this session, we will use `sf`.
+
+We first need to import our spatial data. We will use a shapefile containing data at Output Area (OA) level for Liverpool. These data illustrates the hierarchical structure of spatial data.
+
+# Read Spatial Data
+```{r}
+oa_shp <- st_read("../data/Liverpool_OA.shp")
+```
+Examine the input data. A spatial data frame stores a range of attributes derived from a shapefile including the **geometry** of features (e.g. polygon shape and location), **attributes** for each feature (stored in the .dbf), [projection](https://en.wikipedia.org/wiki/Map_projection) and coordinates of the shapefile's bounding box - for details, execute:
+
+```{r, eval=FALSE}
+?st_read
+```
+
+You can employ the usual functions to visualise the content of the created data frame:
+
+```{r}
+# visualise variable names
+names(oa_shp)
+# data structure
+str(oa_shp)
+# see first few observations
+head(oa_shp)
+```
+**TASK:**
+
+* What are the geographical hierarchy in these data?
+* What is the smallest geography? 
+* What is the largest geography?
+
+# Basic Mapping
+
+Again, many functions exist in CRAN for creating maps:
+
+* `plot` to create static maps
+* `tmap` to create static and interactive maps
+* `leaflet` to create interactive maps
+* `mapview` to create interactive maps
+* `ggplot2` to create data visualisations, including static maps
+* `shiny`  to create web applications, including maps
+
+Here this notebook demonstrates the use of `plot` and `tmap`. First `plot` is used to map the spatial distribution of non-British-born population in Liverpool. First we only map the geometries on the right,
+
+## Using `plot`
+
+```{r, fig.margin = TRUE, fig.cap = 'OAs of Livepool'}
+# mapping geometry
+plot(st_geometry(oa_shp))
+```
+
+and then:
+ 
+```{r, fig.cap = 'Spatial distribution of ethnic groups, Liverpool'}
+# map attributes, adding intervals
+plot(oa_shp["Ethnic"], key.pos = 4, axes = TRUE, key.width = lcm(1.3), key.length = 1.,
+     breaks = "jenks", lwd = 0.1, border = 'grey') 
+```
+
+**TASK:** 
+
+* What is the key pattern emerging from this map?
+
+## Using `tmap`
+
+Similar to `ggplot2`, `tmap` is based on the idea of a ‘grammar of graphics’ which involves a separation between the input data and aesthetics (i.e. the way data are visualised). Each data set can be mapped in various different ways, including location as defined by its geometry, colour and other features. The basic building block is `tm_shape()` (which defines input data), followed by one or more layer elements such as `tm_fill()` and `tm_dots()`.
+
+```{r}
+# ensure geometry is valid
+oa_shp = sf::st_make_valid(oa_shp)
+# map
+legend_title = expression("% ethnic pop.")
+map_oa = tm_shape(oa_shp) +
+  tm_fill(col = "Ethnic", title = legend_title, palette = magma(256), style = "cont") + # add fill
+  tm_borders(col = "white", lwd = .01)  + # add borders
+  tm_compass(type = "arrow", position = c("right", "top") , size = 4) + # add compass
+  tm_scale_bar(breaks = c(0,1,2), text.size = 0.5, position =  c("center", "bottom")) # add scale bar
+map_oa
+```
+
+Note that the operation `+` is used to add new layers. You can set style themes by `tm_style`. 
+
+### Interactive mapping
+
+To visualise the existing styles use `tmap_style_catalogue()`, and you can also evaluate the code chunk below if you would like to create an interactive map.
+
+```{r}
+tmap_mode("view")
+map_oa
+ttm()
+```
+
+> TASK: Try mapping other variables in the spatial data frame. Where do population aged 60 and over concentrate?
+
+
+# Comparing geographies
+
+If you recall, one of the key issues of working with spatial data is the modifiable area unit problem (MAUP) - see [Spatial Data](03a-spatial-data.html). To get a sense of the effects of MAUP, we analyse differences in the spatial patterns of the ethnic population in Liverpool between Middle Layer Super Output Areas (MSOAs) and OAs. So we map these geographies together.
+
+```{r fig-margin, fig.margin = TRUE}
+# read data at the msoa level
+msoa_shp <- st_read("../data/Liverpool_MSOA.shp")
+# ensure geometry is valid
+msoa_shp = sf::st_make_valid(msoa_shp)
+# create a map
+map_msoa = tm_shape(msoa_shp) +
+  tm_fill(col = "Ethnic", title = legend_title, palette = magma(256), style = "cont") + 
+  tm_borders(col = "white", lwd = .01)  + 
+  tm_compass(type = "arrow", position = c("right", "top") , size = 4) + 
+  tm_scale_bar(breaks = c(0,1,2), text.size = 0.5, position =  c("center", "bottom")) 
+# arrange maps 
+tmap_arrange(map_msoa, map_oa) 
+```
+
+> TASK:
+
+> * What differences do you see between OAs and MSOAs?
+
+> * Can you identify areas of spatial clustering? Where are they?
+
+```{r eval=FALSE, include=FALSE}
+file.edit(
+  tint:::template_resources(
+    'tint', '..', 'skeleton', 'skeleton.Rmd'
+  )
+)
+```
+
+```{r bib, include=FALSE}
+# create a bib file for the R packages used in this document
+knitr::write_bib(c('base', 'rmarkdown'), file = 'skeleton.bib')
+```
