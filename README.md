@@ -1,10 +1,10 @@
 # Geographic Data Science for Public Policy
 
-[Francisco Rowe](http://www.franciscorowe.com) [[`@fcorowe`](http://twitter.com/fcorowe)]<sup>1*</sup>
+[Francisco Rowe](http://www.franciscorowe.com) [[`@fcorowe`](http://twitter.com/fcorowe)]<sup>1</sup>
 
 <sup>1</sup> *Geographic Data Science Lab, University of Liverpool, Liverpool, United Kingdom*
 
-<sup>*</sup> *Correspondence*:
+*Correspondence*:
 F.Rowe-Gonzalez@liverpool.ac.uk
 
 # Description
