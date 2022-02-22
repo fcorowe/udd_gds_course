@@ -53,6 +53,6 @@ If you use the material, code or processed data, you can give appropriate attrib
   title = {Geographic Data Science for Public Policy},
   year = 2021,
   url = {fcorowe.github.io/udd_gds_course/},
-  doi = {forthcoming},
+  doi = {DOI 10.17605/OSF.IO/3A2RU},
 }
 ```
