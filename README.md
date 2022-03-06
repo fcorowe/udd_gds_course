@@ -51,7 +51,7 @@ If you use the material, code or processed data, you can give appropriate attrib
 @article{rowe_gds21,
   author = {Francisco Rowe},
   title = {Geographic Data Science for Public Policy},
-  year = 2021,
+  year = 2022,
   url = {fcorowe.github.io/udd_gds_course/},
   doi = {DOI 10.17605/OSF.IO/3A2RU},
 }
